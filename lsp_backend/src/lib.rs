@@ -5,6 +5,8 @@ use ant_parser::Parser;
 use ant_token::token::Token;
 use ant_type_checker::TypeChecker;
 use ant_type_checker::table::TypeTable;
+use ant_type_checker::ty::Ty;
+use ant_type_checker::typed_ast::GetType;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -240,11 +242,15 @@ impl LanguageServer for Backend {
             .lock()
             .unwrap()
             .var_map
-            .keys()
-            .filter(|name| name.starts_with(&prefix))
-            .map(|name| CompletionItem {
+            .iter()
+            .filter(|(name, _)| name.starts_with(&prefix))
+            .map(|(name, sym)| CompletionItem {
                 label: name.to_string(),
-                kind: Some(CompletionItemKind::VARIABLE),
+                kind: Some(if matches!(sym.ty.get_type(), Ty::Function { .. }) {
+                    CompletionItemKind::FUNCTION
+                } else {
+                    CompletionItemKind::VARIABLE
+                }),
                 insert_text: Some(name.to_string()),
                 ..Default::default()
             })
