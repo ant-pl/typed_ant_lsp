@@ -4,12 +4,11 @@ use ant_lexer::Lexer;
 use ant_parser::Parser;
 use ant_token::token::Token;
 use ant_type_checker::TypeChecker;
-use ant_type_checker::table::TypeTable;
 use ant_type_checker::ty::Ty;
+use ant_type_checker::ty_context::TypeContext;
 use ant_type_checker::typed_ast::GetType;
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use tokio::sync::RwLock;
 
 use tower_lsp::jsonrpc::Result;
@@ -88,8 +87,8 @@ fn analyze(
     text: &str,
     uri: &Url,
 
-    // 各种表
-    table: Arc<Mutex<TypeTable>>
+    // 各种上下文
+    tcx: &mut TypeContext,
 ) -> std::result::Result<(), Diagnostic> {
     let file = uri
         .to_file_path()
@@ -116,18 +115,27 @@ fn analyze(
 
         Diagnostic {
             range: Range {
-                start: Position { line, character: start },
-                end: Position { line, character: end },
+                start: Position {
+                    line,
+                    character: start,
+                },
+                end: Position {
+                    line,
+                    character: end,
+                },
             },
             severity: Some(DiagnosticSeverity::ERROR),
-            message: err.message.unwrap_or(err.kind.to_string().into()).to_string(),
+            message: err
+                .message
+                .unwrap_or(err.kind.to_string().into())
+                .to_string(),
             source: Some(file.clone()),
             ..Default::default()
         }
     })?;
 
     /* ---------- type checker ---------- */
-    let mut checker = TypeChecker::new(table.clone());
+    let mut checker = TypeChecker::new(tcx);
 
     checker.check_node(ast).map_err(|err| {
         let line = (err.token.line - 1) as u32;
@@ -135,11 +143,20 @@ fn analyze(
 
         Diagnostic {
             range: Range {
-                start: Position { line, character: start },
-                end: Position { line, character: end },
+                start: Position {
+                    line,
+                    character: start,
+                },
+                end: Position {
+                    line,
+                    character: end,
+                },
             },
             severity: Some(DiagnosticSeverity::ERROR),
-            message: err.message.unwrap_or(err.kind.to_string().into()).to_string(),
+            message: err
+                .message
+                .unwrap_or(err.kind.to_string().into())
+                .to_string(),
             source: Some(file),
             ..Default::default()
         }
@@ -152,16 +169,13 @@ fn analyze(
  * 文档事件专用：publish diagnostics
  * ========================= */
 
-async fn check_and_publish(
-    client: &Client,
-    uri: &Url,
-    text: &str,
-) -> Option<Arc<Mutex<TypeTable>>> {
-    let table = Arc::new(Mutex::new(TypeTable::new().init()));
-    match analyze(text, uri, table.clone()) {
+async fn check_and_publish(client: &Client, uri: &Url, text: &str) -> Option<TypeContext> {
+    let mut tcx = TypeContext::new();
+
+    match analyze(text, uri, &mut tcx) {
         Ok(_) => {
             client.publish_diagnostics(uri.clone(), vec![], None).await;
-            Some(table)
+            Some(tcx)
         }
         Err(diag) => {
             client
@@ -202,7 +216,10 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
 
-        self.documents.write().await.insert(uri.clone(), text.clone());
+        self.documents
+            .write()
+            .await
+            .insert(uri.clone(), text.clone());
         check_and_publish(&self.client, &uri, &text).await;
     }
 
@@ -211,13 +228,19 @@ impl LanguageServer for Backend {
 
         if let Some(change) = params.content_changes.last() {
             let text = change.text.clone();
-            self.documents.write().await.insert(uri.clone(), text.clone());
+            self.documents
+                .write()
+                .await
+                .insert(uri.clone(), text.clone());
             check_and_publish(&self.client, &uri, &text).await;
         }
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        self.documents.write().await.remove(&params.text_document.uri);
+        self.documents
+            .write()
+            .await
+            .remove(&params.text_document.uri);
         self.client
             .publish_diagnostics(params.text_document.uri, vec![], None)
             .await;
@@ -233,12 +256,13 @@ impl LanguageServer for Backend {
             None => return Ok(None),
         };
 
-        let table = Arc::new(Mutex::new(TypeTable::new().init()));
-        let _err = analyze(text, &uri, table.clone());
+        let mut tcx = TypeContext::new();
+        let _err = analyze(text, &uri, &mut tcx);
 
         let prefix = current_ident(text, pos);
 
-        let items = table
+        let items = tcx
+            .table
             .lock()
             .unwrap()
             .var_map
@@ -246,11 +270,13 @@ impl LanguageServer for Backend {
             .filter(|(name, _)| name.starts_with(&prefix))
             .map(|(name, sym)| CompletionItem {
                 label: name.to_string(),
-                kind: Some(if matches!(sym.ty.get_type(), Ty::Function { .. }) {
-                    CompletionItemKind::FUNCTION
-                } else {
-                    CompletionItemKind::VARIABLE
-                }),
+                kind: Some(
+                    if matches!(tcx.get(sym.ty.get_type()), Ty::Function { .. }) {
+                        CompletionItemKind::FUNCTION
+                    } else {
+                        CompletionItemKind::VARIABLE
+                    },
+                ),
                 insert_text: Some(name.to_string()),
                 ..Default::default()
             })
