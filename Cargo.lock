@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "ast"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#6a70ca4a91254144732bce1babcd47f7b0fcc8e1"
+source = "git+https://github.com/LKBaka/TypedAnt.git#a68d5da36c54fa6047ef3e2e51b57b281ffdb072"
 dependencies = [
  "bigdecimal",
  "indexmap",
@@ -67,9 +67,9 @@ checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
 name = "bytes"
-version = "1.11.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
+checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
 name = "cfg-if"
@@ -347,7 +347,7 @@ checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
 [[package]]
 name = "lexer"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#6a70ca4a91254144732bce1babcd47f7b0fcc8e1"
+source = "git+https://github.com/LKBaka/TypedAnt.git#a68d5da36c54fa6047ef3e2e51b57b281ffdb072"
 dependencies = [
  "colored",
  "token",
@@ -488,7 +488,7 @@ dependencies = [
 [[package]]
 name = "parser"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#6a70ca4a91254144732bce1babcd47f7b0fcc8e1"
+source = "git+https://github.com/LKBaka/TypedAnt.git#a68d5da36c54fa6047ef3e2e51b57b281ffdb072"
 dependencies = [
  "ast",
  "colored",
@@ -692,15 +692,15 @@ dependencies = [
 
 [[package]]
 name = "siphasher"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
+checksum = "b2aa850e253778c88a04c3d7323b043aeda9d3e30d5971937c1855769763678e"
 
 [[package]]
 name = "slab"
-version = "0.4.11"
+version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a2ae44ef20feb57a68b23d846850f861394c2e02dc425a50098ae8c90267589"
+checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "smallvec"
@@ -749,7 +749,7 @@ dependencies = [
 [[package]]
 name = "token"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#6a70ca4a91254144732bce1babcd47f7b0fcc8e1"
+source = "git+https://github.com/LKBaka/TypedAnt.git#a68d5da36c54fa6047ef3e2e51b57b281ffdb072"
 dependencies = [
  "phf",
 ]
@@ -912,7 +912,7 @@ dependencies = [
 [[package]]
 name = "type_checker"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#6a70ca4a91254144732bce1babcd47f7b0fcc8e1"
+source = "git+https://github.com/LKBaka/TypedAnt.git#a68d5da36c54fa6047ef3e2e51b57b281ffdb072"
 dependencies = [
  "ast",
  "bigdecimal",
@@ -964,7 +964,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 [[package]]
 name = "utils"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#6a70ca4a91254144732bce1babcd47f7b0fcc8e1"
+source = "git+https://github.com/LKBaka/TypedAnt.git#a68d5da36c54fa6047ef3e2e51b57b281ffdb072"
 
 [[package]]
 name = "windows-link"
@@ -1075,6 +1075,6 @@ dependencies = [
 
 [[package]]
 name = "zmij"
-version = "1.0.16"
+version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfcd145825aace48cff44a8844de64bf75feec3080e0aa5cdbde72961ae51a65"
+checksum = "3ff05f8caa9038894637571ae6b9e29466c1f4f829d26c9b28f869a29cbe3445"
