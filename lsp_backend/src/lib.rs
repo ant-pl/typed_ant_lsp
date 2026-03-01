@@ -4,6 +4,7 @@ use ant_lexer::Lexer;
 use ant_parser::Parser;
 use ant_token::token::Token;
 use ant_type_checker::TypeChecker;
+use ant_type_checker::module::TypedModule;
 use ant_type_checker::ty::Ty;
 use ant_type_checker::ty_context::TypeContext;
 use ant_type_checker::typed_ast::GetType;
@@ -88,7 +89,7 @@ fn analyze(
     uri: &Url,
 
     // 各种上下文
-    tcx: &mut TypeContext,
+    module: &mut TypedModule,
 ) -> std::result::Result<(), Diagnostic> {
     let file = uri
         .to_file_path()
@@ -135,7 +136,7 @@ fn analyze(
     })?;
 
     /* ---------- type checker ---------- */
-    let mut checker = TypeChecker::new(tcx);
+    let mut checker = TypeChecker::new(module);
 
     checker.check_node(ast).map_err(|err| {
         let line = (err.token.line - 1) as u32;
@@ -172,7 +173,9 @@ fn analyze(
 async fn check_and_publish(client: &Client, uri: &Url, text: &str) -> Option<TypeContext> {
     let mut tcx = TypeContext::new();
 
-    match analyze(text, uri, &mut tcx) {
+    let mut module = TypedModule::new(&mut tcx);
+
+    match analyze(text, uri, &mut module) {
         Ok(_) => {
             client.publish_diagnostics(uri.clone(), vec![], None).await;
             Some(tcx)
@@ -257,7 +260,8 @@ impl LanguageServer for Backend {
         };
 
         let mut tcx = TypeContext::new();
-        let _err = analyze(text, &uri, &mut tcx);
+        let mut module = TypedModule::new(&mut tcx);
+        let _err = analyze(text, &uri, &mut module);
 
         let prefix = current_ident(text, pos);
 
