@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "ast"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#440f26fad120206c1f6aa2662a693649090317ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#9836751287aa7e83d624957288da99fed079c3d1"
 dependencies = [
  "bigdecimal",
  "indexmap",
@@ -346,7 +346,7 @@ checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
 [[package]]
 name = "lexer"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#440f26fad120206c1f6aa2662a693649090317ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#9836751287aa7e83d624957288da99fed079c3d1"
 dependencies = [
  "colored",
  "token",
@@ -487,7 +487,7 @@ dependencies = [
 [[package]]
 name = "parser"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#440f26fad120206c1f6aa2662a693649090317ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#9836751287aa7e83d624957288da99fed079c3d1"
 dependencies = [
  "ast",
  "colored",
@@ -742,7 +742,7 @@ dependencies = [
 [[package]]
 name = "token"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#440f26fad120206c1f6aa2662a693649090317ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#9836751287aa7e83d624957288da99fed079c3d1"
 dependencies = [
  "phf",
 ]
@@ -905,7 +905,7 @@ dependencies = [
 [[package]]
 name = "type_checker"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#440f26fad120206c1f6aa2662a693649090317ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#9836751287aa7e83d624957288da99fed079c3d1"
 dependencies = [
  "ast",
  "bigdecimal",
@@ -957,7 +957,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 [[package]]
 name = "utils"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#440f26fad120206c1f6aa2662a693649090317ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#9836751287aa7e83d624957288da99fed079c3d1"
 
 [[package]]
 name = "windows-link"
