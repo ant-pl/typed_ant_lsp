@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "ast"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#7a1fbc852b4776d8edd3e30a26f5adc0709468ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#cf09f61eada4e4e699d5626ac09d2f07a62c04ce"
 dependencies = [
  "bigdecimal",
  "indexmap",
@@ -346,7 +346,7 @@ checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
 [[package]]
 name = "lexer"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#7a1fbc852b4776d8edd3e30a26f5adc0709468ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#cf09f61eada4e4e699d5626ac09d2f07a62c04ce"
 dependencies = [
  "colored",
  "token",
@@ -356,9 +356,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.182"
+version = "0.2.183"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
+checksum = "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
 
 [[package]]
 name = "libm"
@@ -487,7 +487,7 @@ dependencies = [
 [[package]]
 name = "parser"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#7a1fbc852b4776d8edd3e30a26f5adc0709468ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#cf09f61eada4e4e699d5626ac09d2f07a62c04ce"
 dependencies = [
  "ast",
  "colored",
@@ -742,7 +742,7 @@ dependencies = [
 [[package]]
 name = "token"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#7a1fbc852b4776d8edd3e30a26f5adc0709468ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#cf09f61eada4e4e699d5626ac09d2f07a62c04ce"
 dependencies = [
  "phf",
 ]
@@ -905,7 +905,7 @@ dependencies = [
 [[package]]
 name = "type_checker"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#7a1fbc852b4776d8edd3e30a26f5adc0709468ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#cf09f61eada4e4e699d5626ac09d2f07a62c04ce"
 dependencies = [
  "ast",
  "bigdecimal",
@@ -957,7 +957,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 [[package]]
 name = "utils"
 version = "0.1.0"
-source = "git+https://github.com/LKBaka/TypedAnt.git#7a1fbc852b4776d8edd3e30a26f5adc0709468ce"
+source = "git+https://github.com/LKBaka/TypedAnt.git#cf09f61eada4e4e699d5626ac09d2f07a62c04ce"
 
 [[package]]
 name = "windows-link"
