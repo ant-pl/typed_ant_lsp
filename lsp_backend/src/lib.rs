@@ -3,7 +3,7 @@ mod utils;
 use ant_lexer::Lexer;
 use ant_parser::Parser;
 use ant_token::token::Token;
-use ant_type_checker::{TypeChecker, type_infer};
+use ant_type_checker::TypeChecker;
 use ant_type_checker::module::TypedModule;
 use ant_type_checker::ty::Ty;
 use ant_type_checker::ty_context::TypeContext;
