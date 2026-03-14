@@ -275,11 +275,11 @@ impl LanguageServer for Backend {
             .map(|(name, sym)| CompletionItem {
                 label: name.to_string(),
                 kind: Some(
-                    if matches!(tcx.get(sym.ty.get_type()), Ty::Function { .. }) {
-                        CompletionItemKind::FUNCTION
-                    } else {
-                        CompletionItemKind::VARIABLE
-                    },
+                    match tcx.get(sym.ty.get_type()) {
+                        Ty::Function { .. } => CompletionItemKind::FUNCTION,
+                        Ty::Struct { .. } => CompletionItemKind::STRUCT,
+                        _ => CompletionItemKind::VARIABLE
+                    }
                 ),
                 insert_text: Some(name.to_string()),
                 ..Default::default()
