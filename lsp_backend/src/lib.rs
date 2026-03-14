@@ -304,13 +304,11 @@ impl LanguageServer for Backend {
             .filter(|(name, _)| name.starts_with(&prefix))
             .map(|(name, sym)| CompletionItem {
                 label: name.to_string(),
-                kind: Some(
-                    match tcx.get(sym.ty.get_type()) {
-                        Ty::Function { .. } => CompletionItemKind::FUNCTION,
-                        Ty::Struct { .. } => CompletionItemKind::STRUCT,
-                        _ => CompletionItemKind::VARIABLE
-                    }
-                ),
+                kind: Some(match tcx.get(sym.ty.get_type()) {
+                    Ty::Function { .. } => CompletionItemKind::FUNCTION,
+                    Ty::Struct { .. } => CompletionItemKind::STRUCT,
+                    _ => CompletionItemKind::VARIABLE,
+                }),
                 insert_text: Some(name.to_string()),
                 ..Default::default()
             })
