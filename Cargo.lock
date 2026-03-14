@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "ast"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#e428b5aa4e716a7c630c2ea633fa5be28eaf3c92"
+source = "git+https://github.com/ant-pl/TypedAnt.git#5edd5232f966745f895e6b9141665360340b9b1c"
 dependencies = [
  "bigdecimal",
  "indexmap",
@@ -346,7 +346,7 @@ checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
 [[package]]
 name = "lexer"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#e428b5aa4e716a7c630c2ea633fa5be28eaf3c92"
+source = "git+https://github.com/ant-pl/TypedAnt.git#5edd5232f966745f895e6b9141665360340b9b1c"
 dependencies = [
  "colored",
  "token",
@@ -487,7 +487,7 @@ dependencies = [
 [[package]]
 name = "parser"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#e428b5aa4e716a7c630c2ea633fa5be28eaf3c92"
+source = "git+https://github.com/ant-pl/TypedAnt.git#5edd5232f966745f895e6b9141665360340b9b1c"
 dependencies = [
  "ast",
  "colored",
@@ -742,7 +742,7 @@ dependencies = [
 [[package]]
 name = "token"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#e428b5aa4e716a7c630c2ea633fa5be28eaf3c92"
+source = "git+https://github.com/ant-pl/TypedAnt.git#5edd5232f966745f895e6b9141665360340b9b1c"
 dependencies = [
  "phf",
 ]
@@ -905,7 +905,7 @@ dependencies = [
 [[package]]
 name = "type_checker"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#e428b5aa4e716a7c630c2ea633fa5be28eaf3c92"
+source = "git+https://github.com/ant-pl/TypedAnt.git#5edd5232f966745f895e6b9141665360340b9b1c"
 dependencies = [
  "ast",
  "bigdecimal",
@@ -957,7 +957,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 [[package]]
 name = "utils"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#e428b5aa4e716a7c630c2ea633fa5be28eaf3c92"
+source = "git+https://github.com/ant-pl/TypedAnt.git#5edd5232f966745f895e6b9141665360340b9b1c"
 
 [[package]]
 name = "windows-link"
