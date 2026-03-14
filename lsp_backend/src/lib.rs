@@ -3,10 +3,12 @@ mod utils;
 use ant_lexer::Lexer;
 use ant_parser::Parser;
 use ant_token::token::Token;
-use ant_type_checker::TypeChecker;
+use ant_type_checker::{TypeChecker, type_infer};
 use ant_type_checker::module::TypedModule;
 use ant_type_checker::ty::Ty;
 use ant_type_checker::ty_context::TypeContext;
+use ant_type_checker::type_infer::TypeInfer;
+use ant_type_checker::type_infer::infer_context::InferContext;
 use ant_type_checker::typed_ast::GetType;
 
 use std::collections::HashMap;
@@ -139,6 +141,34 @@ fn analyze(
     let mut checker = TypeChecker::new(module);
 
     checker.check_node(ast).map_err(|err| {
+        let line = (err.token.line - 1) as u32;
+        let (start, end) = calc_token_pos(text, &err.token);
+
+        Diagnostic {
+            range: Range {
+                start: Position {
+                    line,
+                    character: start,
+                },
+                end: Position {
+                    line,
+                    character: end,
+                },
+            },
+            severity: Some(DiagnosticSeverity::ERROR),
+            message: err
+                .message
+                .unwrap_or(err.kind.to_string().into())
+                .to_string(),
+            source: Some(file.clone()),
+            ..Default::default()
+        }
+    })?;
+
+    let mut infer_ctx = InferContext::new(module);
+    let mut type_infer = TypeInfer::new(&mut infer_ctx);
+
+    type_infer.infer().map_err(|err| {
         let line = (err.token.line - 1) as u32;
         let (start, end) = calc_token_pos(text, &err.token);
 
