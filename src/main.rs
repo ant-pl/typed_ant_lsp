@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use lsp_backend::Backend;
 use tokio::sync::RwLock;
@@ -9,12 +9,8 @@ async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::new(|client| Backend {
-        client,
-        documents: RwLock::new(HashMap::new()),
-    });
+    let (service, socket) =
+        LspService::new(|client| Backend(client, Arc::new(RwLock::new(HashMap::new()))));
 
-    Server::new(stdin, stdout, socket)
-        .serve(service)
-        .await;
+    Server::new(stdin, stdout, socket).serve(service).await;
 }

@@ -1,5 +1,6 @@
 mod utils;
 
+use ant_ast::node::GetToken;
 use ant_id::ModuleId;
 use ant_lexer::Lexer;
 use ant_name_resolver::NameResolver;
@@ -16,6 +17,7 @@ use ant_typed_module::module::TypedModule;
 use ant_typed_module::ty_context::TypeContext;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use tower_lsp::jsonrpc::Result;
@@ -25,142 +27,118 @@ use tower_lsp::{Client, LanguageServer};
 use crate::utils::UTF16Len;
 
 #[repr(u32)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SemanticTokenTypeNumber {
-    Namespace,
-    Type,
-    Class,
-    Enum,
-    Interface,
-    Struct,
-    TypeParameter,
-    Parameter,
-    Variable,
-    Property,
-    EnumMember,
-    Event,
-    Function,
-    Method,
-    Macro,
-    Keyword,
-    Modifier,
-    Comment,
-    String,
-    Number,
-    Regexp,
-    Operator,
-    Decorator,
+    Namespace = 0,
+    Type = 1,
+    Class = 2,
+    Enum = 3,
+    Interface = 4,
+    Struct = 5,
+    TypeParameter = 6,
+    Parameter = 7,
+    Variable = 8,
+    Property = 9,
+    EnumMember = 10,
+    Event = 11,
+    Function = 12,
+    Method = 13,
+    Macro = 14,
+    Keyword = 15,
+    Modifier = 16,
+    Comment = 17,
+    String = 18,
+    Number = 19,
+    Regexp = 20,
+    Operator = 21,
+    Decorator = 22,
 }
 
 impl SemanticTokenTypeNumber {
     pub fn legend() -> Vec<SemanticTokenType> {
         vec![
-            SemanticTokenType::NAMESPACE,      // 0
-            SemanticTokenType::TYPE,           // 1
-            SemanticTokenType::CLASS,          // 2
-            SemanticTokenType::ENUM,           // 3
-            SemanticTokenType::INTERFACE,      // 4
-            SemanticTokenType::STRUCT,         // 5
-            SemanticTokenType::TYPE_PARAMETER, // 6
-            SemanticTokenType::PARAMETER,      // 7
-            SemanticTokenType::VARIABLE,       // 8
-            SemanticTokenType::PROPERTY,       // 9
-            SemanticTokenType::ENUM_MEMBER,    // 10
-            SemanticTokenType::EVENT,          // 11
-            SemanticTokenType::FUNCTION,       // 12
-            SemanticTokenType::METHOD,         // 13
-            SemanticTokenType::MACRO,          // 14
-            SemanticTokenType::KEYWORD,        // 15
-            SemanticTokenType::MODIFIER,       // 16
-            SemanticTokenType::COMMENT,        // 17
-            SemanticTokenType::STRING,         // 18
-            SemanticTokenType::NUMBER,         // 19
-            SemanticTokenType::REGEXP,         // 20
-            SemanticTokenType::OPERATOR,       // 21
-            SemanticTokenType::DECORATOR,      // 22
+            SemanticTokenType::NAMESPACE,
+            SemanticTokenType::TYPE,
+            SemanticTokenType::CLASS,
+            SemanticTokenType::ENUM,
+            SemanticTokenType::INTERFACE,
+            SemanticTokenType::STRUCT,
+            SemanticTokenType::TYPE_PARAMETER,
+            SemanticTokenType::PARAMETER,
+            SemanticTokenType::VARIABLE,
+            SemanticTokenType::PROPERTY,
+            SemanticTokenType::ENUM_MEMBER,
+            SemanticTokenType::EVENT,
+            SemanticTokenType::FUNCTION,
+            SemanticTokenType::METHOD,
+            SemanticTokenType::MACRO,
+            SemanticTokenType::KEYWORD,
+            SemanticTokenType::MODIFIER,
+            SemanticTokenType::COMMENT,
+            SemanticTokenType::STRING,
+            SemanticTokenType::NUMBER,
+            SemanticTokenType::REGEXP,
+            SemanticTokenType::OPERATOR,
+            SemanticTokenType::DECORATOR,
         ]
     }
 }
 
-impl From<SemanticTokenType> for SemanticTokenTypeNumber {
-    fn from(t: SemanticTokenType) -> Self {
-        match t.as_str() {
-            "namespace" => Self::Namespace,
-            "type" => Self::Type,
-            "class" => Self::Class,
-            "enum" => Self::Enum,
-            "interface" => Self::Interface,
-            "struct" => Self::Struct,
-            "typeParameter" => Self::TypeParameter,
-            "parameter" => Self::Parameter,
-            "variable" => Self::Variable,
-            "property" => Self::Property,
-            "enumMember" => Self::EnumMember,
-            "event" => Self::Event,
-            "function" => Self::Function,
-            "method" => Self::Method,
-            "macro" => Self::Macro,
-            "keyword" => Self::Keyword,
-            "modifier" => Self::Modifier,
-            "comment" => Self::Comment,
-            "string" => Self::String,
-            "number" => Self::Number,
-            "regexp" => Self::Regexp,
-            "operator" => Self::Operator,
-            "decorator" => Self::Decorator,
-            _ => Self::Variable,
-        }
-    }
+#[derive(Debug)]
+pub struct AnalysisResult {
+    pub tcx: TypeContext,
+    pub typed_stmts: Vec<TypedStatement>,
+    pub typed_exprs: Vec<TypedExpression>,
+    pub diagnostics: Vec<Diagnostic>,
 }
-
-struct ImToken {
-    line: u32,
-    start: u32,
-    length: u32,
-    token_type: SemanticTokenTypeNumber,
-}
-
-/* =========================
- * Backend
- * ========================= */
 
 #[derive(Debug)]
-pub struct Backend {
-    pub client: Client,
-    pub documents: RwLock<HashMap<Url, String>>,
+pub struct Backend(
+    pub Client,
+    pub Arc<RwLock<HashMap<Url, (String, Arc<AnalysisResult>)>>>,
+);
+
+fn get_lsp_range(text: &str, token: &Token) -> Range {
+    let line_idx = (token.line.saturating_sub(1)) as usize;
+    let line_text = match text.lines().nth(line_idx) {
+        Some(l) => l,
+        None => return Range::default(), // 行号超了直接跳过
+    };
+
+    let start_char = line_text
+        .chars()
+        .take(token.column.saturating_sub(1))
+        .map(|c| c.len_utf16())
+        .sum::<usize>() as u32;
+    let end_char = start_char + token.value.chars().map(|c| c.len_utf16()).sum::<usize>() as u32;
+    Range {
+        start: Position {
+            line: line_idx as u32,
+            character: start_char,
+        },
+        end: Position {
+            line: line_idx as u32,
+            character: end_char,
+        },
+    }
 }
 
-/* =========================
- * Utils
- * ========================= */
-
-/// 获取光标前的标识符（UTF-8 / UTF-16 安全）
 fn current_ident(text: &str, position: Position) -> String {
-    let mut line_start = 0usize;
-    let mut current_line = 0u32;
-
-    for (i, c) in text.char_indices() {
-        if current_line == position.line {
+    let lines: Vec<&str> = text.lines().collect();
+    if position.line as usize >= lines.len() {
+        return String::new();
+    }
+    let line = lines[position.line as usize];
+    let mut utf16_offset = 0usize;
+    let mut char_idx = 0usize;
+    for (i, c) in line.char_indices() {
+        if utf16_offset >= position.character as usize {
             break;
         }
-        if c == '\n' {
-            current_line += 1;
-            line_start = i + 1;
-        }
+        utf16_offset += c.len_utf16();
+        char_idx = i + c.len_utf8();
     }
-
-    let line = &text[line_start..];
-    let mut col_bytes = 0usize;
-    let mut chars = line.chars();
-
-    for _ in 0..position.character {
-        if let Some(c) = chars.next() {
-            col_bytes += c.len_utf8();
-        }
-    }
-
-    let before = &line[..col_bytes.min(line.len())];
-
+    let before = &line[..char_idx.min(line.len())];
     before
         .chars()
         .rev()
@@ -171,182 +149,77 @@ fn current_ident(text: &str, position: Position) -> String {
         .collect()
 }
 
-/// Token → LSP range（UTF-16）
-fn calc_token_pos(text: &str, token: &Token) -> (u32, u32) {
-    let line_text = text.lines().nth(token.line - 1).unwrap_or("");
-    let prefix: String = line_text.chars().take(token.column - 1).collect();
+impl Backend {
+    async fn run_analysis(&self, uri: &Url, text: &str) -> Arc<AnalysisResult> {
+        let mut tcx = TypeContext::new();
+        let mut module = TypedModule::new(&mut tcx);
+        let path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| std::path::PathBuf::from(uri.to_string()));
+        let path_str: Arc<str> = path.to_string_lossy().to_string().into();
 
-    let start = prefix.utf16_len() as u32;
-    let end = start + token.value.utf16_len() as u32;
+        let mut diagnostics = Vec::new();
+        let tokens = Lexer::new(text.to_string(), path_str.clone()).get_tokens();
 
-    (start, end)
-}
+        let ast = match Parser::new(tokens).parse_program() {
+            Ok(it) => it,
+            Err(e) => {
+                diagnostics.push(Diagnostic {
+                    range: get_lsp_range(text, &e.token),
+                    severity: Some(DiagnosticSeverity::ERROR),
+                    message: e.message.unwrap_or(e.kind.to_string().into()).to_string(),
+                    ..Default::default()
+                });
+                return Arc::new(AnalysisResult {
+                    tcx,
+                    typed_stmts: vec![],
+                    typed_exprs: vec![],
+                    diagnostics,
+                });
+            }
+        };
 
-/* =========================
- * Core analyze (不碰 client)
- * ========================= */
-
-fn analyze(
-    text: &str,
-    uri: &Url,
-
-    // 各种上下文
-    module: &mut TypedModule,
-) -> std::result::Result<(), Vec<Diagnostic>> {
-    let file = uri
-        .to_file_path()
-        .map_or(uri.to_string(), |it| it.to_string_lossy().to_string());
-
-    /* ---------- lexer ---------- */
-    let mut lexer = Lexer::new(text.to_string(), file.clone().into());
-    let tokens = lexer.get_tokens();
-
-    if lexer.contains_error() {
-        return Err(vec![Diagnostic {
-            severity: Some(DiagnosticSeverity::ERROR),
-            message: "lexer error".into(),
-            source: Some(file.clone()),
-            ..Default::default()
-        }]);
-    }
-
-    /* ---------- parser ---------- */
-    let mut parser = Parser::new(tokens);
-    let ast = parser.parse_program().map_err(|err| {
-        let line = (err.token.line - 1) as u32;
-        let (start, end) = calc_token_pos(text, &err.token);
-
-        vec![Diagnostic {
-            range: Range {
-                start: Position {
-                    line,
-                    character: start,
-                },
-                end: Position {
-                    line,
-                    character: end,
-                },
-            },
-            severity: Some(DiagnosticSeverity::ERROR),
-            message: err
-                .message
-                .unwrap_or(err.kind.to_string().into())
-                .to_string(),
-            source: Some(file.clone()),
-            ..Default::default()
-        }]
-    })?;
-
-    /* ---------- name resolver ---------- */
-    let mut name_resolver = NameResolver::new(ModuleId(0), file.clone().into());
-    name_resolver.resolve(ast.clone()).map_err(|err| {
-        let line = (err.token.line - 1) as u32;
-        let (start, end) = calc_token_pos(text, &err.token);
-
-        vec![Diagnostic {
-            range: Range {
-                start: Position {
-                    line,
-                    character: start,
-                },
-                end: Position {
-                    line,
-                    character: end,
-                },
-            },
-            severity: Some(DiagnosticSeverity::ERROR),
-            message: err
-                .message
-                .unwrap_or(err.kind.to_string().into())
-                .to_string(),
-            source: Some(file.clone()),
-            ..Default::default()
-        }]
-    })?;
-
-    /* ---------- type checker ---------- */
-    let mut checker = TypeChecker::new(module, &mut name_resolver);
-
-    checker.check_node(ast).map_err(|err| {
-        let line = (err.token.line - 1) as u32;
-        let (start, end) = calc_token_pos(text, &err.token);
-
-        vec![Diagnostic {
-            range: Range {
-                start: Position {
-                    line,
-                    character: start,
-                },
-                end: Position {
-                    line,
-                    character: end,
-                },
-            },
-            severity: Some(DiagnosticSeverity::ERROR),
-            message: err
-                .message
-                .unwrap_or(err.kind.to_string().into())
-                .to_string(),
-            source: Some(file.clone()),
-            ..Default::default()
-        }]
-    })?;
-
-    let mut infer_ctx = InferContext::new(module);
-    let mut type_infer = TypeInfer::new(&mut infer_ctx, &name_resolver);
-
-    type_infer.infer().map_err(|err| {
-        let line = (err.token.line - 1) as u32;
-        let (start, end) = calc_token_pos(text, &err.token);
-
-        vec![Diagnostic {
-            range: Range {
-                start: Position {
-                    line,
-                    character: start,
-                },
-                end: Position {
-                    line,
-                    character: end,
-                },
-            },
-            severity: Some(DiagnosticSeverity::ERROR),
-            message: err
-                .message
-                .unwrap_or(err.kind.to_string().into())
-                .to_string(),
-            source: Some(file.clone()),
-            ..Default::default()
-        }]
-    })?;
-
-    Ok(())
-}
-
-/* =========================
- * 文档事件专用：publish diagnostics
- * ========================= */
-
-async fn check_and_publish(client: &Client, uri: &Url, text: &str) -> Option<TypeContext> {
-    let mut tcx = TypeContext::new();
-
-    let mut module = TypedModule::new(&mut tcx);
-
-    match analyze(text, uri, &mut module) {
-        Ok(_) => {
-            client.publish_diagnostics(uri.clone(), vec![], None).await;
-            Some(tcx)
+        let mut name_resolver = NameResolver::new(ModuleId(0), path_str);
+        if let Err(e) = name_resolver.resolve(ast.clone()) {
+            diagnostics.push(Diagnostic {
+                range: get_lsp_range(text, &e.token),
+                severity: Some(DiagnosticSeverity::ERROR),
+                message: e.message.unwrap_or_default().to_string(),
+                ..Default::default()
+            });
+            return Arc::new(AnalysisResult {
+                tcx,
+                typed_stmts: vec![],
+                typed_exprs: vec![],
+                diagnostics,
+            });
         }
-        Err(diags) => {
-            client.publish_diagnostics(uri.clone(), diags, None).await;
-            None
+
+        let mut checker = TypeChecker::new(&mut module, &mut name_resolver);
+        if let Err(e) = checker.check_all(ast) {
+            diagnostics.push(Diagnostic {
+                range: get_lsp_range(text, &e.token),
+                severity: Some(DiagnosticSeverity::ERROR),
+                message: e.message.unwrap_or_default().to_string(),
+                ..Default::default()
+            });
+        } else {
+            let constraints = checker.get_constraints().to_vec();
+            let mut infer_ctx = InferContext::new(&mut module);
+            let mut type_infer = TypeInfer::new(&mut infer_ctx, &mut name_resolver);
+            let _ = type_infer.unify_all(constraints);
+            let _ = type_infer.infer();
+            type_infer.finalize();
         }
+
+        Arc::new(AnalysisResult {
+            typed_stmts: module.typed_stmts,
+            typed_exprs: module.typed_exprs,
+            diagnostics,
+            tcx,
+        })
     }
 }
-
-/* =========================
- * LSP impl
- * ========================= */
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
@@ -357,8 +230,7 @@ impl LanguageServer for Backend {
                     TextDocumentSyncKind::FULL,
                 )),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(vec!["_".into()]),
-                    resolve_provider: Some(false),
+                    trigger_characters: Some(vec![".".into(), ":".into()]),
                     ..Default::default()
                 }),
                 semantic_tokens_provider: Some(
@@ -374,13 +246,12 @@ impl LanguageServer for Backend {
                             semantic_tokens_options: SemanticTokensOptions {
                                 legend: SemanticTokensLegend {
                                     token_types: SemanticTokenTypeNumber::legend(),
-                                    token_modifiers: vec![], // 暂时传空
+                                    token_modifiers: vec![],
                                 },
                                 full: Some(SemanticTokensFullOptions::Bool(true)),
-                                range: None,
                                 ..Default::default()
                             },
-                            static_registration_options: Default::default(),
+                            static_registration_options: StaticRegistrationOptions::default(),
                         },
                     ),
                 ),
@@ -394,79 +265,64 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        let uri = params.text_document.uri;
-        let text = params.text_document.text;
-
-        self.documents
+        let res = self
+            .run_analysis(&params.text_document.uri, &params.text_document.text)
+            .await;
+        self.0
+            .publish_diagnostics(
+                params.text_document.uri.clone(),
+                res.diagnostics.clone(),
+                None,
+            )
+            .await;
+        self.1
             .write()
             .await
-            .insert(uri.clone(), text.clone());
-        check_and_publish(&self.client, &uri, &text).await;
+            .insert(params.text_document.uri, (params.text_document.text, res));
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let uri = params.text_document.uri;
-
         if let Some(change) = params.content_changes.last() {
-            let text = change.text.clone();
-            self.documents
+            let res = self
+                .run_analysis(&params.text_document.uri, &change.text)
+                .await;
+            self.0
+                .publish_diagnostics(
+                    params.text_document.uri.clone(),
+                    res.diagnostics.clone(),
+                    None,
+                )
+                .await;
+            self.1
                 .write()
                 .await
-                .insert(uri.clone(), text.clone());
-            check_and_publish(&self.client, &uri, &text).await;
+                .insert(params.text_document.uri, (change.text.clone(), res));
         }
     }
 
-    async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        self.documents
-            .write()
-            .await
-            .remove(&params.text_document.uri);
-        self.client
-            .publish_diagnostics(params.text_document.uri, vec![], None)
-            .await;
-    }
-
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
-        let uri = params.text_document_position.text_document.uri;
-        let pos = params.text_document_position.position;
-
-        let docs = self.documents.read().await;
-        let text = match docs.get(&uri) {
+        let states = self.1.read().await;
+        let (text, res) = match states.get(&params.text_document_position.text_document.uri) {
             Some(it) => it,
             None => return Ok(None),
         };
-
-        let mut tcx = TypeContext::new();
-        let mut module = TypedModule::new(&mut tcx);
-        let _err = analyze(text, &uri, &mut module);
-
-        let prefix = current_ident(text, pos);
-
-        let items = tcx
-            .table
-            .lock()
-            .unwrap()
+        let prefix = current_ident(text, params.text_document_position.position);
+        let table = res.tcx.table.lock().unwrap();
+        let items = table
             .var_map
             .iter()
             .filter(|(name, _)| name.starts_with(&prefix))
             .map(|(name, sym)| CompletionItem {
                 label: name.to_string(),
-                kind: Some(match tcx.get(sym.ty.get_type()) {
+                kind: Some(match res.tcx.get(sym.ty.get_type()) {
                     Ty::Function { .. } => CompletionItemKind::FUNCTION,
                     Ty::Struct { .. } => CompletionItemKind::STRUCT,
                     _ => CompletionItemKind::VARIABLE,
                 }),
-                insert_text: Some(name.to_string()),
                 ..Default::default()
             })
             .collect();
-
         Ok(Some(CompletionResponse::Array(items)))
-    }
-
-    async fn shutdown(&self) -> Result<()> {
-        Ok(())
     }
 
     async fn semantic_tokens_full(
@@ -474,140 +330,127 @@ impl LanguageServer for Backend {
         params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
         let uri = params.text_document.uri;
-        let docs = self.documents.read().await;
-        let text = match docs.get(&uri) {
-            Some(t) => t,
+        let states = self.1.read().await;
+        let (text, res) = match states.get(&uri) {
+            Some(it) => it,
             None => return Ok(None),
         };
 
-        let mut tcx = TypeContext::new();
-        let mut module = TypedModule::new(&mut tcx);
-        let _ = analyze(text, &uri, &mut module);
+        let mut intermediate = Vec::new();
 
-        let mut im_tokens = Vec::new();
+        let current_file_path = uri
+            .to_file_path()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
 
-        for stmt in &module.typed_stmts {
-            match stmt {
-                TypedStatement::Struct { name, .. } => {
-                    let (start, end) = calc_token_pos(text, &name.token);
-                    let line = (name.token.line - 1) as u32;
-
-                    let token_type = SemanticTokenType::STRUCT;
-
-                    im_tokens.push(ImToken {
-                        line,
-                        start,
-                        length: end - start,
-                        token_type: token_type.into(),
-                    });
-                }
-
-                _ => {}
+        for expr in &res.typed_exprs {
+            if expr.token().file.as_ref() != current_file_path {
+                continue;
             }
-        }
 
-        for expr in &module.typed_exprs {
             match expr {
                 TypedExpression::Ident(ident, ty_id, _) => {
-                    let (start, end) = calc_token_pos(text, &ident.token);
-                    let line = (ident.token.line - 1) as u32;
-
-                    let ty = tcx.get(*ty_id);
-                    let token_type = if let Some(_) = str_to_ty(&ident.value) {
-                        SemanticTokenType::TYPE
+                    let range = get_lsp_range(text, &ident.token);
+                    let ty = res.tcx.get(*ty_id);
+                    let token_type = if str_to_ty(&ident.value).is_some() {
+                        SemanticTokenTypeNumber::Type
                     } else {
                         match ty {
-                            Ty::Function { .. } => SemanticTokenType::FUNCTION,
-                            Ty::Struct { .. } => SemanticTokenType::STRUCT,
-                            Ty::AppliedGeneric(base, _) if ident.value == *base => {
-                                SemanticTokenType::STRUCT
-                            }
-                            Ty::Generic(name, ..) if ident.value == *name => {
-                                SemanticTokenType::TYPE
-                            }
-                            _ => SemanticTokenType::VARIABLE,
+                            Ty::Function { .. } => SemanticTokenTypeNumber::Function,
+                            Ty::Generic(..) => SemanticTokenTypeNumber::TypeParameter,
+                            _ => SemanticTokenTypeNumber::Variable,
                         }
                     };
-
-                    im_tokens.push(ImToken {
-                        line,
-                        start,
-                        length: end - start,
-                        token_type: token_type.into(),
-                    });
+                    intermediate.push((
+                        range.start,
+                        ident.token.value.utf16_len() as u32,
+                        token_type,
+                    ));
                 }
-
+                TypedExpression::Function { name: Some(tk), .. } => {
+                    let range = get_lsp_range(text, tk);
+                    intermediate.push((
+                        range.start,
+                        tk.value.utf16_len() as u32,
+                        SemanticTokenTypeNumber::Function,
+                    ));
+                }
                 TypedExpression::TypePath { left: ident, .. } => {
-                    let (start, end) = calc_token_pos(text, &ident.token);
-                    let line = (ident.token.line - 1) as u32;
-
-                    let token_type = SemanticTokenType::STRUCT;
-
-                    im_tokens.push(ImToken {
-                        line,
-                        start,
-                        length: end - start,
-                        token_type: token_type.into(),
-                    });
+                    let range = get_lsp_range(text, &ident.token);
+                    intermediate.push((
+                        range.start,
+                        ident.token.value.utf16_len() as u32,
+                        SemanticTokenTypeNumber::Struct,
+                    ));
                 }
-
-                TypedExpression::Function { name, .. } => {
-                    if let Some(token) = name {
-                        let (start, end) = calc_token_pos(text, &token);
-                        let line = (token.line - 1) as u32;
-
-                        let token_type = SemanticTokenType::FUNCTION;
-
-                        im_tokens.push(ImToken {
-                            line,
-                            start,
-                            length: end - start,
-                            token_type: token_type.into(),
-                        });
+                _ => {}
+            }
+        }
+        for stmt in &res.typed_stmts {
+            match stmt {
+                TypedStatement::Use { full_path, .. } => {
+                    for (i, tk) in full_path.iter().enumerate() {
+                        let range = get_lsp_range(text, tk);
+                        let ty = if i == full_path.len() - 1 {
+                            SemanticTokenTypeNumber::Type
+                        } else {
+                            SemanticTokenTypeNumber::Namespace
+                        };
+                        intermediate.push((range.start, tk.value.utf16_len() as u32, ty));
                     }
                 }
-
+                TypedStatement::Struct { name, .. } => {
+                    let range = get_lsp_range(text, &name.token);
+                    intermediate.push((
+                        range.start,
+                        name.token.value.utf16_len() as u32,
+                        SemanticTokenTypeNumber::Struct,
+                    ));
+                }
+                TypedStatement::Extern { alias, .. } => {
+                    let range = get_lsp_range(text, alias);
+                    intermediate.push((
+                        range.start,
+                        alias.value.utf16_len() as u32,
+                        SemanticTokenTypeNumber::Function,
+                    ));
+                }
                 _ => {}
             }
         }
 
-        // 排序 (LSP 要求从上到下，从左到右)
-        im_tokens.sort_by(|a, b| {
-            if a.line != b.line {
-                a.line.cmp(&b.line)
-            } else {
-                a.start.cmp(&b.start)
-            }
+        intermediate.sort_by(|a, b| {
+            a.0.line
+                .cmp(&b.0.line)
+                .then(a.0.character.cmp(&b.0.character))
         });
+        intermediate.dedup_by(|a, b| a.0 == b.0);
 
-        // Delta 编码转换
         let mut data = Vec::new();
-        let mut last_line = 0;
-        let mut last_start = 0;
-
-        for token in im_tokens {
-            let delta_line = token.line - last_line;
+        let (mut last_line, mut last_start) = (0, 0);
+        for (pos, len, ty) in intermediate {
+            let delta_line = pos.line - last_line;
             let delta_start = if delta_line == 0 {
-                token.start - last_start
+                pos.character - last_start
             } else {
-                token.start
+                pos.character
             };
-
             data.push(SemanticToken {
                 delta_line,
                 delta_start,
-                length: token.length,
-                token_type: token.token_type as u32,
+                length: len,
+                token_type: ty as u32,
                 token_modifiers_bitset: 0,
             });
-
-            last_line = token.line;
-            last_start = token.start;
+            last_line = pos.line;
+            last_start = pos.character;
         }
-
         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
             result_id: None,
             data,
         })))
+    }
+    async fn shutdown(&self) -> Result<()> {
+        Ok(())
     }
 }
