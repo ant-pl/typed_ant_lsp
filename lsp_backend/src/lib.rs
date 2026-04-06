@@ -24,7 +24,7 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
-use crate::utils::UTF16Len;
+use crate::utils::{UTF16Len, get_file_content};
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,7 +89,7 @@ pub struct AnalysisResult {
     pub tcx: TypeContext,
     pub typed_stmts: Vec<TypedStatement>,
     pub typed_exprs: Vec<TypedExpression>,
-    pub diagnostics: Vec<Diagnostic>,
+    pub diagnostics: HashMap<Url, Vec<Diagnostic>>,
 }
 
 #[derive(Debug)]
@@ -97,6 +97,11 @@ pub struct Backend(
     pub Client,
     pub Arc<RwLock<HashMap<Url, (String, Arc<AnalysisResult>)>>>,
 );
+
+fn get_token_file_text(tok: &Token) -> String {
+    let token_file_path = tok.file.as_ref();
+    get_file_content(token_file_path)
+}
 
 fn get_lsp_range(text: &str, token: &Token) -> Range {
     let line_idx = (token.line.saturating_sub(1)) as usize;
@@ -158,18 +163,21 @@ impl Backend {
             .unwrap_or_else(|_| std::path::PathBuf::from(uri.to_string()));
         let path_str: Arc<str> = path.to_string_lossy().to_string().into();
 
-        let mut diagnostics = Vec::new();
+        let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
         let tokens = Lexer::new(text.to_string(), path_str.clone()).get_tokens();
 
         let ast = match Parser::new(tokens).parse_program() {
             Ok(it) => it,
             Err(e) => {
-                diagnostics.push(Diagnostic {
-                    range: get_lsp_range(text, &e.token),
+                let target_url = Url::from_file_path(e.token.file.as_ref()).unwrap();
+
+                diagnostics.entry(target_url).or_default().push(Diagnostic {
+                    range: get_lsp_range(&get_token_file_text(&e.token), &e.token),
                     severity: Some(DiagnosticSeverity::ERROR),
                     message: e.message.unwrap_or(e.kind.to_string().into()).to_string(),
                     ..Default::default()
                 });
+
                 return Arc::new(AnalysisResult {
                     tcx,
                     typed_stmts: vec![],
@@ -181,34 +189,25 @@ impl Backend {
 
         let mut name_resolver = NameResolver::new(ModuleId(0), path_str);
         if let Err(e) = name_resolver.resolve(ast.clone()) {
-            diagnostics.push(Diagnostic {
-                range: get_lsp_range(text, &e.token),
+            let target_url = Url::from_file_path(e.token.file.as_ref()).unwrap();
+
+            diagnostics.entry(target_url).or_default().push(Diagnostic {
+                range: get_lsp_range(&get_token_file_text(&e.token), &e.token),
                 severity: Some(DiagnosticSeverity::ERROR),
-                message: e.message.unwrap_or_default().to_string(),
+                message: e.message.unwrap_or(e.kind.to_string().into()).to_string(),
                 ..Default::default()
-            });
-            return Arc::new(AnalysisResult {
-                tcx,
-                typed_stmts: vec![],
-                typed_exprs: vec![],
-                diagnostics,
             });
         }
 
         let mut checker = TypeChecker::new(&mut module, &mut name_resolver);
         if let Err(e) = checker.check_all(ast) {
-            diagnostics.push(Diagnostic {
-                range: get_lsp_range(text, &e.token),
-                severity: Some(DiagnosticSeverity::ERROR),
-                message: e.message.unwrap_or_default().to_string(),
-                ..Default::default()
-            });
+            let target_url = Url::from_file_path(e.token.file.as_ref()).unwrap();
 
-            return Arc::new(AnalysisResult {
-                typed_stmts: module.typed_stmts,
-                typed_exprs: module.typed_exprs,
-                diagnostics,
-                tcx,
+            diagnostics.entry(target_url).or_default().push(Diagnostic {
+                range: get_lsp_range(&get_token_file_text(&e.token), &e.token),
+                severity: Some(DiagnosticSeverity::ERROR),
+                message: e.message.unwrap_or(e.kind.to_string().into()).to_string(),
+                ..Default::default()
             });
         }
 
@@ -217,31 +216,27 @@ impl Backend {
         let mut type_infer = TypeInfer::new(&mut infer_ctx, &mut name_resolver);
 
         if let Err(e) = type_infer.unify_all(constraints) {
-            diagnostics.push(Diagnostic {
-                range: get_lsp_range(text, &e.token),
+            let target_url = Url::from_file_path(e.token.file.as_ref()).unwrap();
+
+            diagnostics.entry(target_url).or_default().push(Diagnostic {
+                range: get_lsp_range(&get_token_file_text(&e.token), &e.token),
                 severity: Some(DiagnosticSeverity::ERROR),
-                message: e.message.unwrap_or_default().to_string(),
+                message: e.message.unwrap_or(e.kind.to_string().into()).to_string(),
                 ..Default::default()
             });
-
-            return Arc::new(AnalysisResult {
-                typed_stmts: module.typed_stmts,
-                typed_exprs: module.typed_exprs,
-                diagnostics,
-                tcx,
-            });
         };
-        
-        
+
         if let Err(e) = type_infer.infer() {
-            diagnostics.push(Diagnostic {
-                range: get_lsp_range(text, &e.token),
+            let target_url = Url::from_file_path(e.token.file.as_ref()).unwrap();
+
+            diagnostics.entry(target_url).or_default().push(Diagnostic {
+                range: get_lsp_range(&get_token_file_text(&e.token), &e.token),
                 severity: Some(DiagnosticSeverity::ERROR),
-                message: e.message.unwrap_or_default().to_string(),
+                message: e.message.unwrap_or(e.kind.to_string().into()).to_string(),
                 ..Default::default()
             });
         }
-        
+
         Arc::new(AnalysisResult {
             typed_stmts: module.typed_stmts,
             typed_exprs: module.typed_exprs,
@@ -295,38 +290,73 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        let res = self
-            .run_analysis(&params.text_document.uri, &params.text_document.text)
-            .await;
-        self.0
-            .publish_diagnostics(
-                params.text_document.uri.clone(),
-                res.diagnostics.clone(),
-                None,
-            )
-            .await;
-        self.1
-            .write()
-            .await
-            .insert(params.text_document.uri, (params.text_document.text, res));
+        let uri = params.text_document.uri;
+        let text = params.text_document.text;
+
+        // 获取旧的分析结果，用于清理不再存在的错误
+        let old_diagnostics_files = {
+            let states = self.1.read().await;
+            states
+                .get(&uri)
+                .map(|(_, res)| res.diagnostics.keys().cloned().collect::<Vec<_>>())
+                .unwrap_or_default()
+        };
+
+        // 运行新的分析
+        let res = self.run_analysis(&uri, &text).await;
+
+        // 发布新的诊断信息
+        for (file_url, file_diags) in res.diagnostics.iter() {
+            self.0
+                .publish_diagnostics(file_url.clone(), file_diags.clone(), None)
+                .await;
+        }
+
+        // 清理残留：如果某个文件在旧结果里有错，但在新结果里没出现，发送空数组清除它
+        for old_uri in old_diagnostics_files {
+            if !res.diagnostics.contains_key(&old_uri) {
+                self.0.publish_diagnostics(old_uri, vec![], None).await;
+            }
+        }
+
+        self.1.write().await.insert(uri, (text, res));
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         if let Some(change) = params.content_changes.last() {
-            let res = self
-                .run_analysis(&params.text_document.uri, &change.text)
-                .await;
-            self.0
-                .publish_diagnostics(
-                    params.text_document.uri.clone(),
-                    res.diagnostics.clone(),
-                    None,
-                )
-                .await;
+            let uri = params.text_document.uri;
+            let text = &change.text;
+
+            // 获取旧的分析结果，用于清理不再存在的错误
+            let old_diagnostics_files = {
+                let states = self.1.read().await;
+                states
+                    .get(&uri)
+                    .map(|(_, res)| res.diagnostics.keys().cloned().collect::<Vec<_>>())
+                    .unwrap_or_default()
+            };
+
+            // 运行新的分析
+            let res = self.run_analysis(&uri, &text).await;
+
+            // 发布新的诊断信息
+            for (file_url, file_diags) in res.diagnostics.iter() {
+                self.0
+                    .publish_diagnostics(file_url.clone(), file_diags.clone(), None)
+                    .await;
+            }
+
+            // 清理残留：如果某个文件在旧结果里有错，但在新结果里没出现，发送空数组清除它
+            for old_uri in old_diagnostics_files {
+                if !res.diagnostics.contains_key(&old_uri) {
+                    self.0.publish_diagnostics(old_uri, vec![], None).await;
+                }
+            }
+
             self.1
                 .write()
                 .await
-                .insert(params.text_document.uri, (change.text.clone(), res));
+                .insert(uri, (change.text.clone(), res));
         }
     }
 
