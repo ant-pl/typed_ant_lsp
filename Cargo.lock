@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "ant_crate_def"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 dependencies = [
  "ast",
  "id",
@@ -18,7 +18,7 @@ dependencies = [
 [[package]]
 name = "ast"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 dependencies = [
  "bigdecimal",
  "indexmap",
@@ -323,7 +323,7 @@ dependencies = [
 [[package]]
 name = "id"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 
 [[package]]
 name = "idna"
@@ -365,7 +365,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 [[package]]
 name = "lexer"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 dependencies = [
  "colored",
  "token",
@@ -443,7 +443,7 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 [[package]]
 name = "name_resolver"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 dependencies = [
  "ant_crate_def",
  "ast",
@@ -529,7 +529,7 @@ dependencies = [
 [[package]]
 name = "parser"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 dependencies = [
  "ast",
  "bigdecimal",
@@ -785,7 +785,7 @@ dependencies = [
 [[package]]
 name = "token"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 dependencies = [
  "phf",
 ]
@@ -948,7 +948,7 @@ dependencies = [
 [[package]]
 name = "ty"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 dependencies = [
  "ast",
  "indexmap",
@@ -957,7 +957,7 @@ dependencies = [
 [[package]]
 name = "type_checker"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 dependencies = [
  "ant_crate_def",
  "ast",
@@ -984,7 +984,7 @@ dependencies = [
 [[package]]
 name = "typed_ast"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 dependencies = [
  "ast",
  "bigdecimal",
@@ -997,7 +997,7 @@ dependencies = [
 [[package]]
 name = "typed_module"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 dependencies = [
  "ast",
  "id",
@@ -1040,7 +1040,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 [[package]]
 name = "utils"
 version = "0.1.0"
-source = "git+https://github.com/ant-pl/TypedAnt.git#22205354937847163b91dc8776b2b94ec8a1fae4"
+source = "git+https://github.com/ant-pl/TypedAnt.git#be9458aa5f29665089b498027078e7b2a63e24aa"
 
 [[package]]
 name = "windows-link"
