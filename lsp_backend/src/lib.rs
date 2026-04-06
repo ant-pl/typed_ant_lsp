@@ -1,17 +1,19 @@
 mod utils;
 
+use ant_id::ModuleId;
 use ant_lexer::Lexer;
+use ant_name_resolver::NameResolver;
 use ant_parser::Parser;
 use ant_token::token::Token;
+use ant_ty::{Ty, str_to_ty};
 use ant_type_checker::TypeChecker;
-use ant_type_checker::module::TypedModule;
-use ant_type_checker::ty::{Ty, str_to_ty};
-use ant_type_checker::ty_context::TypeContext;
 use ant_type_checker::type_infer::TypeInfer;
 use ant_type_checker::type_infer::infer_context::InferContext;
-use ant_type_checker::typed_ast::GetType;
-use ant_type_checker::typed_ast::typed_expr::TypedExpression;
-use ant_type_checker::typed_ast::typed_stmt::TypedStatement;
+use ant_typed_ast::GetType;
+use ant_typed_ast::typed_expr::TypedExpression;
+use ant_typed_ast::typed_stmt::TypedStatement;
+use ant_typed_module::module::TypedModule;
+use ant_typed_module::ty_context::TypeContext;
 
 use std::collections::HashMap;
 use tokio::sync::RwLock;
@@ -203,7 +205,7 @@ fn analyze(
         return Err(vec![Diagnostic {
             severity: Some(DiagnosticSeverity::ERROR),
             message: "lexer error".into(),
-            source: Some(file),
+            source: Some(file.clone()),
             ..Default::default()
         }]);
     }
@@ -235,8 +237,35 @@ fn analyze(
         }]
     })?;
 
+    /* ---------- name resolver ---------- */
+    let mut name_resolver = NameResolver::new(ModuleId(0), file.clone().into());
+    name_resolver.resolve(ast.clone()).map_err(|err| {
+        let line = (err.token.line - 1) as u32;
+        let (start, end) = calc_token_pos(text, &err.token);
+
+        vec![Diagnostic {
+            range: Range {
+                start: Position {
+                    line,
+                    character: start,
+                },
+                end: Position {
+                    line,
+                    character: end,
+                },
+            },
+            severity: Some(DiagnosticSeverity::ERROR),
+            message: err
+                .message
+                .unwrap_or(err.kind.to_string().into())
+                .to_string(),
+            source: Some(file.clone()),
+            ..Default::default()
+        }]
+    })?;
+
     /* ---------- type checker ---------- */
-    let mut checker = TypeChecker::new(module);
+    let mut checker = TypeChecker::new(module, &mut name_resolver);
 
     checker.check_node(ast).map_err(|err| {
         let line = (err.token.line - 1) as u32;
@@ -264,7 +293,7 @@ fn analyze(
     })?;
 
     let mut infer_ctx = InferContext::new(module);
-    let mut type_infer = TypeInfer::new(&mut infer_ctx);
+    let mut type_infer = TypeInfer::new(&mut infer_ctx, &name_resolver);
 
     type_infer.infer().map_err(|err| {
         let line = (err.token.line - 1) as u32;
@@ -286,7 +315,7 @@ fn analyze(
                 .message
                 .unwrap_or(err.kind.to_string().into())
                 .to_string(),
-            source: Some(file),
+            source: Some(file.clone()),
             ..Default::default()
         }]
     })?;
@@ -479,7 +508,7 @@ impl LanguageServer for Backend {
 
         for expr in &module.typed_exprs {
             match expr {
-                TypedExpression::Ident(ident, ty_id) => {
+                TypedExpression::Ident(ident, ty_id, _) => {
                     let (start, end) = calc_token_pos(text, &ident.token);
                     let line = (ident.token.line - 1) as u32;
 
