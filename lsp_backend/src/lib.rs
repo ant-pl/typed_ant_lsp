@@ -386,7 +386,12 @@ impl LanguageServer for Backend {
                 _ => {}
             }
         }
+        
         for stmt in &res.typed_stmts {
+            if stmt.token().file.as_ref() != current_file_path {
+                continue;
+            }
+
             match stmt {
                 TypedStatement::Use { full_path, .. } => {
                     for (i, tk) in full_path.iter().enumerate() {
