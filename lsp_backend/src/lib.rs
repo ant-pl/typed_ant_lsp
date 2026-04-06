@@ -203,15 +203,45 @@ impl Backend {
                 message: e.message.unwrap_or_default().to_string(),
                 ..Default::default()
             });
-        } else {
-            let constraints = checker.get_constraints().to_vec();
-            let mut infer_ctx = InferContext::new(&mut module);
-            let mut type_infer = TypeInfer::new(&mut infer_ctx, &mut name_resolver);
-            let _ = type_infer.unify_all(constraints);
-            let _ = type_infer.infer();
-            type_infer.finalize();
+
+            return Arc::new(AnalysisResult {
+                typed_stmts: module.typed_stmts,
+                typed_exprs: module.typed_exprs,
+                diagnostics,
+                tcx,
+            });
         }
 
+        let constraints = checker.get_constraints().to_vec();
+        let mut infer_ctx = InferContext::new(&mut module);
+        let mut type_infer = TypeInfer::new(&mut infer_ctx, &mut name_resolver);
+
+        if let Err(e) = type_infer.unify_all(constraints) {
+            diagnostics.push(Diagnostic {
+                range: get_lsp_range(text, &e.token),
+                severity: Some(DiagnosticSeverity::ERROR),
+                message: e.message.unwrap_or_default().to_string(),
+                ..Default::default()
+            });
+
+            return Arc::new(AnalysisResult {
+                typed_stmts: module.typed_stmts,
+                typed_exprs: module.typed_exprs,
+                diagnostics,
+                tcx,
+            });
+        };
+        
+        
+        if let Err(e) = type_infer.infer() {
+            diagnostics.push(Diagnostic {
+                range: get_lsp_range(text, &e.token),
+                severity: Some(DiagnosticSeverity::ERROR),
+                message: e.message.unwrap_or_default().to_string(),
+                ..Default::default()
+            });
+        }
+        
         Arc::new(AnalysisResult {
             typed_stmts: module.typed_stmts,
             typed_exprs: module.typed_exprs,
@@ -386,7 +416,7 @@ impl LanguageServer for Backend {
                 _ => {}
             }
         }
-        
+
         for stmt in &res.typed_stmts {
             if stmt.token().file.as_ref() != current_file_path {
                 continue;
